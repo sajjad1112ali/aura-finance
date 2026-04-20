@@ -185,7 +185,7 @@ export function TransactionsList() {
         ) : (
           <ul className="divide-y divide-border">
             <AnimatePresence initial={false}>
-              {filtered.map((t) => (
+              {paginated.map((t) => (
                 <TransactionRow
                   key={t.id}
                   t={t}
@@ -197,6 +197,77 @@ export function TransactionsList() {
           </ul>
         )}
       </div>
+
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-card border border-border p-4 shadow-soft">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>Rows per page</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => setPageSize(v === "all" ? "all" : (Number(v) as PageSize))}
+            >
+              <SelectTrigger className="w-24 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="hidden sm:inline">
+              {pageSize === "all"
+                ? `Showing all ${filtered.length}`
+                : `${pageStart + 1}–${Math.min(pageEnd, filtered.length)} of ${filtered.length}`}
+            </span>
+          </div>
+
+          {pageSize !== "all" && totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+              <div className="flex items-center gap-1 px-2">
+                {pageItems.map((it, i) =>
+                  it === "ellipsis" ? (
+                    <span key={`e-${i}`} className="px-2 text-muted-foreground">…</span>
+                  ) : (
+                    <button
+                      key={it}
+                      onClick={() => setPage(it)}
+                      className={`h-9 min-w-9 px-3 rounded-md text-sm font-medium transition-colors ${
+                        it === currentPage
+                          ? "bg-gradient-brand text-primary-foreground shadow-glow"
+                          : "hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      {it}
+                    </button>
+                  )
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-9"
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+              <span className="ml-2 text-sm text-muted-foreground hidden md:inline">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
