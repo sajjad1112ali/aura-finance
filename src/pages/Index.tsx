@@ -13,6 +13,7 @@ import { ExportDialog } from "@/features/export/ExportDialog";
 const Index = () => {
   const { user, initialized, init } = useAuth();
   const loadFinance = useFinance((s) => s.load);
+  const resetFinance = useFinance((s) => s.reset);
   const initTheme = useTheme((s) => s.init);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [exportOpen, setExportOpen] = useState(false);
@@ -23,8 +24,12 @@ const Index = () => {
   }, [init, initTheme]);
 
   useEffect(() => {
-    if (user) loadFinance();
-  }, [user, loadFinance]);
+    if (user) {
+      loadFinance(user.id);
+    } else {
+      resetFinance();
+    }
+  }, [user, loadFinance, resetFinance]);
 
   if (!initialized) {
     return (
