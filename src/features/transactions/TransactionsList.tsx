@@ -81,6 +81,16 @@ export function TransactionsList() {
     return () => setFilteredIds(null);
   }, [filtered, hasFilters, setFilteredIds]);
 
+  // Reset to first page whenever filters/sort/pageSize change
+  useEffect(() => { setPage(1); }, [search, categoryFilter, typeFilter, from, to, sort, pageSize]);
+
+  const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = pageSize === "all" ? 0 : (currentPage - 1) * pageSize;
+  const pageEnd = pageSize === "all" ? filtered.length : pageStart + pageSize;
+  const paginated = pageSize === "all" ? filtered : filtered.slice(pageStart, pageEnd);
+  const pageItems = getPageItems(currentPage, totalPages);
+
   const clearFilters = () => {
     setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(""); setTo(""); setSort("date-desc");
   };
