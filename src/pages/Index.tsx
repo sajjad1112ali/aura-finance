@@ -1,16 +1,62 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useAuth } from "@/store/auth";
+import { useFinance } from "@/store/finance";
+import { useTheme } from "@/store/theme";
+import AuthPage from "@/features/auth/AuthPage";
+import { AppShell, Tab } from "@/components/AppShell";
+import { Dashboard } from "@/features/dashboard/Dashboard";
+import { TransactionsList } from "@/features/transactions/TransactionsList";
+import { CategoriesPage } from "@/features/categories/CategoriesPage";
+import { ExportDialog } from "@/features/export/ExportDialog";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const { user, initialized, init } = useAuth();
+  const loadFinance = useFinance((s) => s.load);
+  const initTheme = useTheme((s) => s.init);
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [exportOpen, setExportOpen] = useState(false);
+
+  useEffect(() => {
+    init();
+    initTheme();
+  }, [init, initTheme]);
+
+  useEffect(() => {
+    if (user) loadFinance();
+  }, [user, loadFinance]);
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return <AuthPage />;
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      <AppShell active={tab} onChange={setTab} onExport={() => setExportOpen(true)} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {tab === "dashboard" && <Dashboard />}
+            {tab === "transactions" && <TransactionsList />}
+            {tab === "categories" && <CategoriesPage />}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
