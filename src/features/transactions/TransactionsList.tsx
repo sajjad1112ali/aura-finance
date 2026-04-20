@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
-import { Plus, Search, Trash2, Filter, X, Pencil } from "lucide-react";
+import { Plus, Search, Trash2, Filter, X, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { useFinance } from "@/store/finance";
 import { useExportScope } from "@/store/exportScope";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,22 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { Transaction } from "@/types";
 
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
+type PageSize = 10 | 20 | 50 | 100 | "all";
+
+function getPageItems(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const items: (number | "ellipsis")[] = [];
+  const showLeftDots = current > 4;
+  const showRightDots = current < total - 3;
+  items.push(1);
+  if (showLeftDots) items.push("ellipsis");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) items.push(i);
+  if (showRightDots) items.push("ellipsis");
+  items.push(total);
+  return items;
+}
 
 export function TransactionsList() {
   const { transactions, categories, deleteTransaction } = useFinance();
@@ -25,6 +41,8 @@ export function TransactionsList() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<SortKey>("date-desc");
+  const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [page, setPage] = useState(1);
 
   const hasFilters = !!(search || categoryFilter !== "all" || typeFilter !== "all" || from || to);
 
@@ -62,6 +80,16 @@ export function TransactionsList() {
     setFilteredIds(hasFilters ? filtered.map((t) => t.id) : null);
     return () => setFilteredIds(null);
   }, [filtered, hasFilters, setFilteredIds]);
+
+  // Reset to first page whenever filters/sort/pageSize change
+  useEffect(() => { setPage(1); }, [search, categoryFilter, typeFilter, from, to, sort, pageSize]);
+
+  const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = pageSize === "all" ? 0 : (currentPage - 1) * pageSize;
+  const pageEnd = pageSize === "all" ? filtered.length : pageStart + pageSize;
+  const paginated = pageSize === "all" ? filtered : filtered.slice(pageStart, pageEnd);
+  const pageItems = getPageItems(currentPage, totalPages);
 
   const clearFilters = () => {
     setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(""); setTo(""); setSort("date-desc");
@@ -157,7 +185,7 @@ export function TransactionsList() {
         ) : (
           <ul className="divide-y divide-border">
             <AnimatePresence initial={false}>
-              {filtered.map((t) => (
+              {paginated.map((t) => (
                 <TransactionRow
                   key={t.id}
                   t={t}
@@ -169,6 +197,77 @@ export function TransactionsList() {
           </ul>
         )}
       </div>
+
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-card border border-border p-4 shadow-soft">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>Rows per page</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => setPageSize(v === "all" ? "all" : (Number(v) as PageSize))}
+            >
+              <SelectTrigger className="w-24 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="hidden sm:inline">
+              {pageSize === "all"
+                ? `Showing all ${filtered.length}`
+                : `${pageStart + 1}–${Math.min(pageEnd, filtered.length)} of ${filtered.length}`}
+            </span>
+          </div>
+
+          {pageSize !== "all" && totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+              <div className="flex items-center gap-1 px-2">
+                {pageItems.map((it, i) =>
+                  it === "ellipsis" ? (
+                    <span key={`e-${i}`} className="px-2 text-muted-foreground">…</span>
+                  ) : (
+                    <button
+                      key={it}
+                      onClick={() => setPage(it)}
+                      className={`h-9 min-w-9 px-3 rounded-md text-sm font-medium transition-colors ${
+                        it === currentPage
+                          ? "bg-gradient-brand text-primary-foreground shadow-glow"
+                          : "hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      {it}
+                    </button>
+                  )
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-9"
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+              <span className="ml-2 text-sm text-muted-foreground hidden md:inline">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
