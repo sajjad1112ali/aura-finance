@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
-import { Plus, Search, Trash2, Filter, X, Pencil } from "lucide-react";
+import { Plus, Search, Trash2, Filter, X, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { useFinance } from "@/store/finance";
 import { useExportScope } from "@/store/exportScope";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,22 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { Transaction } from "@/types";
 
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
+type PageSize = 10 | 20 | 50 | 100 | "all";
+
+function getPageItems(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const items: (number | "ellipsis")[] = [];
+  const showLeftDots = current > 4;
+  const showRightDots = current < total - 3;
+  items.push(1);
+  if (showLeftDots) items.push("ellipsis");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) items.push(i);
+  if (showRightDots) items.push("ellipsis");
+  items.push(total);
+  return items;
+}
 
 export function TransactionsList() {
   const { transactions, categories, deleteTransaction } = useFinance();
