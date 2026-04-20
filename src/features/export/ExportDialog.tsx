@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FileText, FileSpreadsheet } from "lucide-react";
 import { useFinance } from "@/store/finance";
+import { useExportScope } from "@/store/exportScope";
 import { exportCSV, exportPDF } from "@/services/exporter";
 import { toast } from "sonner";
 
@@ -12,9 +14,18 @@ interface Props {
 
 export function ExportDialog({ open, onOpenChange }: Props) {
   const { transactions, categories } = useFinance();
+  const filteredIds = useExportScope((s) => s.filteredIds);
+
+  const scoped = useMemo(() => {
+    if (!filteredIds) return transactions;
+    const set = new Set(filteredIds);
+    return transactions.filter((t) => set.has(t.id));
+  }, [transactions, filteredIds]);
+
+  const isFiltered = filteredIds !== null;
 
   const handle = (fn: () => void, label: string) => {
-    if (transactions.length === 0) return toast.error("Nothing to export yet");
+    if (scoped.length === 0) return toast.error("Nothing to export");
     fn();
     toast.success(`${label} exported`);
     onOpenChange(false);
@@ -27,11 +38,18 @@ export function ExportDialog({ open, onOpenChange }: Props) {
           <DialogTitle className="font-display text-2xl">Export your data</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Download all {transactions.length} transactions in your preferred format.
+          {isFiltered ? (
+            <>
+              Exporting <span className="font-semibold text-foreground">{scoped.length}</span> filtered
+              {" "}of {transactions.length} transactions.
+            </>
+          ) : (
+            <>Download all {scoped.length} transactions in your preferred format.</>
+          )}
         </p>
         <div className="grid grid-cols-2 gap-3 pt-2">
           <Button
-            onClick={() => handle(() => exportCSV(transactions, categories), "CSV")}
+            onClick={() => handle(() => exportCSV(scoped, categories), "CSV")}
             variant="outline"
             className="h-24 flex-col gap-2 hover:bg-accent hover:border-accent"
           >
@@ -39,7 +57,7 @@ export function ExportDialog({ open, onOpenChange }: Props) {
             <span className="font-semibold">CSV</span>
           </Button>
           <Button
-            onClick={() => handle(() => exportPDF(transactions, categories), "PDF")}
+            onClick={() => handle(() => exportPDF(scoped, categories), "PDF")}
             variant="outline"
             className="h-24 flex-col gap-2 hover:bg-accent hover:border-accent"
           >

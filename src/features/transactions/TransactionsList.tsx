@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
-import { Plus, Search, Trash2, Filter, X } from "lucide-react";
+import { Plus, Search, Trash2, Filter, X, Pencil } from "lucide-react";
 import { useFinance } from "@/store/finance";
+import { useExportScope } from "@/store/exportScope";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,13 +16,17 @@ type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 
 export function TransactionsList() {
   const { transactions, categories, deleteTransaction } = useFinance();
+  const setFilteredIds = useExportScope((s) => s.setFilteredIds);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Transaction | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<SortKey>("date-desc");
+
+  const hasFilters = !!(search || categoryFilter !== "all" || typeFilter !== "all" || from || to);
 
   const filtered = useMemo(() => {
     let list = [...transactions];
@@ -52,10 +57,20 @@ export function TransactionsList() {
     return list;
   }, [transactions, categories, search, categoryFilter, typeFilter, from, to, sort]);
 
+  // Publish current filter scope so global Export uses it
+  useEffect(() => {
+    setFilteredIds(hasFilters ? filtered.map((t) => t.id) : null);
+    return () => setFilteredIds(null);
+  }, [filtered, hasFilters, setFilteredIds]);
+
   const clearFilters = () => {
     setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(""); setTo(""); setSort("date-desc");
   };
-  const hasFilters = search || categoryFilter !== "all" || typeFilter !== "all" || from || to;
+
+  const dialogOpen = open || !!editing;
+  const handleDialogChange = (o: boolean) => {
+    if (!o) { setOpen(false); setEditing(null); }
+  };
 
   return (
     <div className="space-y-6">
@@ -64,17 +79,26 @@ export function TransactionsList() {
           <h1 className="font-display text-3xl sm:text-4xl font-bold">Transactions</h1>
           <p className="text-muted-foreground mt-1">{filtered.length} of {transactions.length} entries</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
-            <Button className="h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95">
+            <Button
+              onClick={() => { setEditing(null); setOpen(true); }}
+              className="h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
+            >
               <Plus className="h-4 w-4 mr-2" /> Add transaction
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="font-display text-2xl">New transaction</DialogTitle>
+              <DialogTitle className="font-display text-2xl">
+                {editing ? "Edit transaction" : "New transaction"}
+              </DialogTitle>
             </DialogHeader>
-            <TransactionForm onDone={() => setOpen(false)} />
+            <TransactionForm
+              key={editing?.id ?? "new"}
+              transaction={editing ?? undefined}
+              onDone={() => handleDialogChange(false)}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -134,7 +158,12 @@ export function TransactionsList() {
           <ul className="divide-y divide-border">
             <AnimatePresence initial={false}>
               {filtered.map((t) => (
-                <TransactionRow key={t.id} t={t} onDelete={deleteTransaction} />
+                <TransactionRow
+                  key={t.id}
+                  t={t}
+                  onDelete={deleteTransaction}
+                  onEdit={() => setEditing(t)}
+                />
               ))}
             </AnimatePresence>
           </ul>
@@ -144,7 +173,15 @@ export function TransactionsList() {
   );
 }
 
-function TransactionRow({ t, onDelete }: { t: Transaction; onDelete: (id: string) => void }) {
+function TransactionRow({
+  t,
+  onDelete,
+  onEdit,
+}: {
+  t: Transaction;
+  onDelete: (id: string) => void;
+  onEdit: () => void;
+}) {
   const { categories } = useFinance();
   const cat = categories.find((c) => c.id === t.categoryId);
   const Icon = (cat?.icon && (Icons as any)[cat.icon]) || Icons.Circle;
@@ -177,8 +214,15 @@ function TransactionRow({ t, onDelete }: { t: Transaction; onDelete: (id: string
         {isIncome ? "+" : "−"}{formatCurrency(t.amount)}
       </div>
       <button
+        onClick={onEdit}
+        className="opacity-60 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-lg hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground"
+        title="Edit"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+      <button
         onClick={() => onDelete(t.id)}
-        className="opacity-0 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground"
+        className="opacity-60 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground"
         title="Delete"
       >
         <Trash2 className="h-4 w-4" />
