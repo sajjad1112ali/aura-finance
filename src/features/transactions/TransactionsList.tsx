@@ -41,6 +41,8 @@ export function TransactionsList() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<SortKey>("date-desc");
+  const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [page, setPage] = useState(1);
 
   const hasFilters = !!(search || categoryFilter !== "all" || typeFilter !== "all" || from || to);
 
