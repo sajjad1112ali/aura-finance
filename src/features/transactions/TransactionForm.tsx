@@ -7,34 +7,45 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFinance } from "@/store/finance";
-import { TransactionType } from "@/types";
+import { Transaction, TransactionType } from "@/types";
 import { toast } from "sonner";
 
 interface Props {
   onDone?: () => void;
+  transaction?: Transaction;
 }
 
-export function TransactionForm({ onDone }: Props) {
-  const { categories, addTransaction } = useFinance();
-  const [type, setType] = useState<TransactionType>("expense");
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [description, setDescription] = useState("");
+const today = () => new Date().toISOString().slice(0, 10);
+
+export function TransactionForm({ onDone, transaction }: Props) {
+  const { categories, addTransaction, updateTransaction } = useFinance();
+  const isEdit = !!transaction;
+  const [type, setType] = useState<TransactionType>(transaction?.type ?? "expense");
+  const [amount, setAmount] = useState(transaction ? String(transaction.amount) : "");
+  const [categoryId, setCategoryId] = useState(transaction?.categoryId ?? "");
+  const [date, setDate] = useState(transaction?.date ?? today());
+  const [description, setDescription] = useState(transaction?.description ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   const filteredCats = categories.filter((c) => c.type === type || c.type === "both");
+  const maxDate = today();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return toast.error("Enter a valid amount");
     if (!categoryId) return toast.error("Pick a category");
+    if (date > maxDate) return toast.error("Date cannot be in the future");
     setSubmitting(true);
     try {
-      await addTransaction({ amount: amt, type, categoryId, date, description });
-      toast.success(`${type === "income" ? "Income" : "Expense"} added`);
-      setAmount(""); setDescription(""); setCategoryId("");
+      if (isEdit && transaction) {
+        await updateTransaction(transaction.id, { amount: amt, type, categoryId, date, description });
+        toast.success("Transaction updated");
+      } else {
+        await addTransaction({ amount: amt, type, categoryId, date, description });
+        toast.success(`${type === "income" ? "Income" : "Expense"} added`);
+        setAmount(""); setDescription(""); setCategoryId("");
+      }
       onDone?.();
     } finally {
       setSubmitting(false);
@@ -48,7 +59,7 @@ export function TransactionForm({ onDone }: Props) {
           <button
             key={t}
             type="button"
-            onClick={() => { setType(t); setCategoryId(""); }}
+            onClick={() => { setType(t); if (!isEdit) setCategoryId(""); }}
             className="relative py-2 text-sm font-medium z-10"
           >
             {type === t && (
@@ -97,7 +108,14 @@ export function TransactionForm({ onDone }: Props) {
         </div>
         <div className="space-y-2">
           <Label>Date</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-11" required />
+          <Input
+            type="date"
+            value={date}
+            max={maxDate}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-11"
+            required
+          />
         </div>
       </div>
 
@@ -113,7 +131,7 @@ export function TransactionForm({ onDone }: Props) {
         type="submit" disabled={submitting}
         className="w-full h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
       >
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Add ${type}`}
+        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : isEdit ? "Save changes" : `Add ${type}`}
       </Button>
     </form>
   );

@@ -11,6 +11,7 @@ interface FinanceState {
   load: (userId: string) => Promise<void>;
   reset: () => void;
   addTransaction: (t: Omit<Transaction, "id" | "createdAt">) => Promise<void>;
+  updateTransaction: (id: string, patch: Partial<Omit<Transaction, "id" | "createdAt">>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addCategory: (c: Omit<Category, "id" | "isCustom">) => Promise<void>;
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
@@ -41,6 +42,13 @@ export const useFinance = create<FinanceState>((set, get) => ({
     if (!uid) return;
     const tx: Transaction = { ...t, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
     const transactions = [tx, ...get().transactions];
+    await storage.set(txKey(uid), transactions);
+    set({ transactions });
+  },
+  updateTransaction: async (id, patch) => {
+    const uid = get().userId;
+    if (!uid) return;
+    const transactions = get().transactions.map((t) => (t.id === id ? { ...t, ...patch } : t));
     await storage.set(txKey(uid), transactions);
     set({ transactions });
   },
