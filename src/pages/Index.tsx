@@ -9,6 +9,7 @@ import { Dashboard } from "@/features/dashboard/Dashboard";
 import { TransactionsList } from "@/features/transactions/TransactionsList";
 import { CategoriesPage } from "@/features/categories/CategoriesPage";
 import { ExportDialog } from "@/features/export/ExportDialog";
+import { RecurringDialog } from "@/features/recurring/RecurringDialog";
 
 const Index = () => {
   const { user, initialized, init } = useAuth();
@@ -17,6 +18,7 @@ const Index = () => {
   const initTheme = useTheme((s) => s.init);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [exportOpen, setExportOpen] = useState(false);
+  const [recurringOpen, setRecurringOpen] = useState(false);
 
   useEffect(() => {
     init();
@@ -43,7 +45,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppShell active={tab} onChange={setTab} onExport={() => setExportOpen(true)} />
+      <AppShell
+        active={tab}
+        onChange={setTab}
+        onExport={() => setExportOpen(true)}
+        onRecurring={() => setRecurringOpen(true)}
+      />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <AnimatePresence mode="wait">
           <motion.div
@@ -60,6 +67,7 @@ const Index = () => {
         </AnimatePresence>
       </main>
       <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
+      <RecurringDialog open={recurringOpen} onOpenChange={setRecurringOpen} />
     </div>
   );
 };

@@ -278,6 +278,18 @@ export function TransactionsList() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
+        title="Delete transaction?"
+        description={
+          confirmDelete
+            ? `${confirmDelete.description || "This transaction"} (${formatCurrency(confirmDelete.amount)}) will be permanently removed.`
+            : ""
+        }
+        onConfirm={doDelete}
+      />
     </div>
   );
 }
@@ -288,7 +300,7 @@ function TransactionRow({
   onEdit,
 }: {
   t: Transaction;
-  onDelete: (id: string) => void;
+  onDelete: (t: Transaction) => void;
   onEdit: () => void;
 }) {
   const { categories } = useFinance();
@@ -330,7 +342,7 @@ function TransactionRow({
         <Pencil className="h-4 w-4" />
       </button>
       <button
-        onClick={() => onDelete(t.id)}
+        onClick={() => onDelete(t)}
         className="opacity-60 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground"
         title="Delete"
       >
