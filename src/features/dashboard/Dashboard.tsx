@@ -163,6 +163,8 @@ export function Dashboard() {
           )}
         </motion.div>
       </div>
+
+      <WeeklyInsights />
     </div>
   );
 }
