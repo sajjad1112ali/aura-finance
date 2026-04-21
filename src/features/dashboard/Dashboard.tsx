@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { useFinance } from "@/store/finance";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { formatCurrency } from "@/lib/format";
+import { WeeklyInsights } from "./WeeklyInsights";
 
 export function Dashboard() {
   const { transactions, categories } = useFinance();
