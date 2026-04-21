@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { TransactionForm } from "./TransactionForm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Transaction } from "@/types";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 type PageSize = 10 | 20 | 50 | 100 | "all";
@@ -35,6 +37,7 @@ export function TransactionsList() {
   const setFilteredIds = useExportScope((s) => s.setFilteredIds);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Transaction | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
@@ -98,6 +101,13 @@ export function TransactionsList() {
   const dialogOpen = open || !!editing;
   const handleDialogChange = (o: boolean) => {
     if (!o) { setOpen(false); setEditing(null); }
+  };
+
+  const doDelete = async () => {
+    if (!confirmDelete) return;
+    await deleteTransaction(confirmDelete.id);
+    toast.success("Transaction deleted");
+    setConfirmDelete(null);
   };
 
   return (
@@ -189,7 +199,7 @@ export function TransactionsList() {
                 <TransactionRow
                   key={t.id}
                   t={t}
-                  onDelete={deleteTransaction}
+                  onDelete={(tx) => setConfirmDelete(tx)}
                   onEdit={() => setEditing(t)}
                 />
               ))}
