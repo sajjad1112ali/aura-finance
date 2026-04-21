@@ -24,3 +24,17 @@ export interface User {
   name: string;
   email: string;
 }
+
+export type RecurringFrequency = "daily" | "weekly" | "monthly";
+
+export interface RecurringRule {
+  id: string;
+  amount: number;
+  type: TransactionType;
+  categoryId: string;
+  description: string;
+  frequency: RecurringFrequency;
+  startDate: string; // ISO date — first occurrence
+  lastPostedDate?: string; // ISO date of latest auto-posted occurrence
+  createdAt: string;
+}
