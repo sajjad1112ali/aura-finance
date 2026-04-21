@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Category, TransactionType } from "@/types";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const ICON_OPTIONS = ["UtensilsCrossed", "Receipt", "Car", "ShoppingBag", "Film", "HeartPulse", "Briefcase", "Laptop", "TrendingUp", "Sparkles", "Plane", "Home", "BookOpen", "Gift", "Coffee", "Dumbbell"];
 const COLOR_OPTIONS = ["6 78% 57%", "35 90% 55%", "220 70% 55%", "300 60% 55%", "270 60% 60%", "340 70% 55%", "152 45% 45%", "186 41% 38%", "186 33% 47%", "160 50% 40%"];
@@ -18,6 +19,7 @@ export function CategoriesPage() {
   const { categories, addCategory, updateCategory, deleteCategory, transactions } = useFinance();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
   const [form, setForm] = useState({ name: "", icon: "Sparkles", color: COLOR_OPTIONS[0], type: "expense" as TransactionType | "both" });
 
   const openNew = () => {
@@ -44,11 +46,17 @@ export function CategoriesPage() {
     setOpen(false);
   };
 
-  const handleDelete = async (c: Category) => {
+  const requestDelete = (c: Category) => {
     const inUse = transactions.some((t) => t.categoryId === c.id);
     if (inUse) return toast.error("Category is in use by transactions");
-    await deleteCategory(c.id);
+    setConfirmDelete(c);
+  };
+
+  const doDelete = async () => {
+    if (!confirmDelete) return;
+    await deleteCategory(confirmDelete.id);
     toast.success("Category deleted");
+    setConfirmDelete(null);
   };
 
   return (
@@ -90,7 +98,7 @@ export function CategoriesPage() {
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   {c.isCustom && (
-                    <button onClick={() => handleDelete(c)} className="h-7 w-7 rounded-md bg-muted hover:bg-destructive hover:text-destructive-foreground flex items-center justify-center" title="Delete">
+                    <button onClick={() => requestDelete(c)} className="h-7 w-7 rounded-md bg-muted hover:bg-destructive hover:text-destructive-foreground flex items-center justify-center" title="Delete">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}

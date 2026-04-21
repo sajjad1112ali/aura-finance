@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Wallet, LayoutDashboard, Receipt, Tags, LogOut, Moon, Sun, Download } from "lucide-react";
+import { Wallet, LayoutDashboard, Receipt, Tags, LogOut, Moon, Sun, Download, Repeat } from "lucide-react";
 import { useAuth } from "@/store/auth";
 import { useTheme } from "@/store/theme";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,10 @@ interface Props {
   active: Tab;
   onChange: (t: Tab) => void;
   onExport: () => void;
+  onRecurring: () => void;
 }
 
-export function AppShell({ active, onChange, onExport }: Props) {
+export function AppShell({ active, onChange, onExport, onRecurring }: Props) {
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
 
@@ -59,6 +60,16 @@ export function AppShell({ active, onChange, onExport }: Props) {
         </nav>
 
         <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRecurring}
+            title="Recurring transactions"
+            className="hidden sm:inline-flex h-9 gap-1.5"
+          >
+            <Repeat className="h-4 w-4" />
+            <span className="hidden lg:inline">Recurring</span>
+          </Button>
           <Button variant="ghost" size="icon" onClick={onExport} title="Export" className="hidden sm:inline-flex">
             <Download className="h-4 w-4" />
           </Button>

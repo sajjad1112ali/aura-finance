@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { TransactionForm } from "./TransactionForm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Transaction } from "@/types";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "sonner";
 
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 type PageSize = 10 | 20 | 50 | 100 | "all";
@@ -35,6 +37,7 @@ export function TransactionsList() {
   const setFilteredIds = useExportScope((s) => s.setFilteredIds);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Transaction | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
@@ -98,6 +101,13 @@ export function TransactionsList() {
   const dialogOpen = open || !!editing;
   const handleDialogChange = (o: boolean) => {
     if (!o) { setOpen(false); setEditing(null); }
+  };
+
+  const doDelete = async () => {
+    if (!confirmDelete) return;
+    await deleteTransaction(confirmDelete.id);
+    toast.success("Transaction deleted");
+    setConfirmDelete(null);
   };
 
   return (
@@ -189,7 +199,7 @@ export function TransactionsList() {
                 <TransactionRow
                   key={t.id}
                   t={t}
-                  onDelete={deleteTransaction}
+                  onDelete={(tx) => setConfirmDelete(tx)}
                   onEdit={() => setEditing(t)}
                 />
               ))}
@@ -268,6 +278,18 @@ export function TransactionsList() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(o) => !o && setConfirmDelete(null)}
+        title="Delete transaction?"
+        description={
+          confirmDelete
+            ? `${confirmDelete.description || "This transaction"} (${formatCurrency(confirmDelete.amount)}) will be permanently removed.`
+            : ""
+        }
+        onConfirm={doDelete}
+      />
     </div>
   );
 }
@@ -278,7 +300,7 @@ function TransactionRow({
   onEdit,
 }: {
   t: Transaction;
-  onDelete: (id: string) => void;
+  onDelete: (t: Transaction) => void;
   onEdit: () => void;
 }) {
   const { categories } = useFinance();
@@ -320,7 +342,7 @@ function TransactionRow({
         <Pencil className="h-4 w-4" />
       </button>
       <button
-        onClick={() => onDelete(t.id)}
+        onClick={() => onDelete(t)}
         className="opacity-60 group-hover:opacity-100 transition-opacity h-9 w-9 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground"
         title="Delete"
       >

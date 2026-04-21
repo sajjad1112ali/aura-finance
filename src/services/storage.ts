@@ -32,5 +32,6 @@ export const STORAGE_KEYS = {
   users: "et.auth.users",
   transactions: "et.transactions",
   categories: "et.categories",
+  recurring: "et.recurring",
   theme: "et.theme",
 } as const;
