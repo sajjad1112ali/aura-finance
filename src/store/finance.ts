@@ -44,11 +44,13 @@ function normalizeRecurringTransactions(transactions: Transaction[], rules: Recu
     for (const date of dates) {
       const matches = transactions.filter((tx) => matchesRecurringRule(tx, rule, date));
       if (!matches.length) continue;
-      const primary = matches[0];
-      if (matches.length > 1 || primary.createdAt >= rule.createdAt) {
-        recurringIdsByTransaction.set(primary.id, rule.id);
-      }
-      for (const duplicate of matches.slice(1)) {
+      const recurringCandidates = matches.filter(
+        (tx) => tx.recurringRuleId === rule.id || tx.createdAt >= rule.createdAt
+      );
+      if (!recurringCandidates.length) continue;
+      const primary = recurringCandidates.find((tx) => tx.recurringRuleId === rule.id) ?? recurringCandidates[0];
+      recurringIdsByTransaction.set(primary.id, rule.id);
+      for (const duplicate of recurringCandidates.filter((tx) => tx.id !== primary.id)) {
         duplicatesToRemove.add(duplicate.id);
       }
     }
