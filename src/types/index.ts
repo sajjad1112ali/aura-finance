@@ -17,6 +17,7 @@ export interface Transaction {
   date: string; // ISO date
   description: string;
   createdAt: string;
+  recurringRuleId?: string;
 }
 
 export interface User {
