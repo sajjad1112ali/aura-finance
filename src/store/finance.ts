@@ -44,7 +44,10 @@ function normalizeRecurringTransactions(transactions: Transaction[], rules: Recu
     for (const date of dates) {
       const matches = transactions.filter((tx) => matchesRecurringRule(tx, rule, date));
       if (!matches.length) continue;
-      recurringIdsByTransaction.set(matches[0].id, rule.id);
+      const primary = matches[0];
+      if (matches.length > 1 || primary.createdAt >= rule.createdAt) {
+        recurringIdsByTransaction.set(primary.id, rule.id);
+      }
       for (const duplicate of matches.slice(1)) {
         duplicatesToRemove.add(duplicate.id);
       }
@@ -95,6 +98,8 @@ export const useFinance = create<FinanceState>((set, get) => ({
 
     // Auto-post any due recurring occurrences up to today
     const today = todayISO();
+    const normalized = normalizeRecurringTransactions(transactions, rules, today);
+    if (normalized.changed) transactions = normalized.transactions;
     const existingRecurringTxs = new Set(
       transactions
         .filter((tx) => tx.recurringRuleId)
@@ -125,6 +130,8 @@ export const useFinance = create<FinanceState>((set, get) => ({
       transactions = [...newTxs, ...transactions].sort((a, b) => b.date.localeCompare(a.date));
       await storage.set(txKey(userId), transactions);
       await storage.set(recKey(userId), rules);
+    } else if (normalized.changed) {
+      await storage.set(txKey(userId), transactions);
     }
 
     set({ transactions, categories, recurring: rules, loaded: true });
