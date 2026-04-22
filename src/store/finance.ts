@@ -26,6 +26,10 @@ const txKey = (uid: string) => `${STORAGE_KEYS.transactions}.${uid}`;
 const catKey = (uid: string) => `${STORAGE_KEYS.categories}.${uid}`;
 const recKey = (uid: string) => `${STORAGE_KEYS.recurring}.${uid}`;
 
+// Module-level guard to prevent concurrent loads (e.g. React StrictMode double-invoke
+// in dev) from auto-posting the same recurring occurrences twice.
+let loadingFor: string | null = null;
+
 export const useFinance = create<FinanceState>((set, get) => ({
   userId: null,
   transactions: [],
@@ -33,7 +37,13 @@ export const useFinance = create<FinanceState>((set, get) => ({
   recurring: [],
   loaded: false,
   load: async (userId) => {
+    // Skip if we're already loading or have already loaded this user.
+    if (loadingFor === userId) return;
+    const state = get();
+    if (state.loaded && state.userId === userId) return;
+    loadingFor = userId;
     set({ loaded: false, userId });
+    try {
     const [t, c, r] = await Promise.all([
       storage.get<Transaction[]>(txKey(userId)),
       storage.get<Category[]>(catKey(userId)),
@@ -70,8 +80,14 @@ export const useFinance = create<FinanceState>((set, get) => ({
     }
 
     set({ transactions, categories, recurring: rules, loaded: true });
+    } finally {
+      if (loadingFor === userId) loadingFor = null;
+    }
   },
-  reset: () => set({ userId: null, transactions: [], categories: [], recurring: [], loaded: false }),
+  reset: () => {
+    loadingFor = null;
+    set({ userId: null, transactions: [], categories: [], recurring: [], loaded: false });
+  },
   addTransaction: async (t) => {
     const uid = get().userId;
     if (!uid) return;
