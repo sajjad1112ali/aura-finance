@@ -26,6 +26,8 @@ const txKey = (uid: string) => `${STORAGE_KEYS.transactions}.${uid}`;
 const catKey = (uid: string) => `${STORAGE_KEYS.categories}.${uid}`;
 const recKey = (uid: string) => `${STORAGE_KEYS.recurring}.${uid}`;
 
+const recurringTxKey = (ruleId: string, date: string) => `${ruleId}:${date}`;
+
 // Module-level guard to prevent concurrent loads (e.g. React StrictMode double-invoke
 // in dev) from auto-posting the same recurring occurrences twice.
 let loadingFor: string | null = null;
@@ -56,11 +58,19 @@ export const useFinance = create<FinanceState>((set, get) => ({
 
     // Auto-post any due recurring occurrences up to today
     const today = todayISO();
+    const existingRecurringTxs = new Set(
+      transactions
+        .filter((tx) => tx.recurringRuleId)
+        .map((tx) => recurringTxKey(tx.recurringRuleId as string, tx.date))
+    );
     const newTxs: Transaction[] = [];
     rules = rules.map((rule) => {
       const dates = dueOccurrences(rule.startDate, rule.frequency, rule.lastPostedDate, today);
       if (!dates.length) return rule;
       for (const d of dates) {
+        const key = recurringTxKey(rule.id, d);
+        if (existingRecurringTxs.has(key)) continue;
+        existingRecurringTxs.add(key);
         newTxs.push({
           id: crypto.randomUUID(),
           amount: rule.amount,
@@ -69,6 +79,7 @@ export const useFinance = create<FinanceState>((set, get) => ({
           date: d,
           description: rule.description,
           createdAt: new Date().toISOString(),
+          recurringRuleId: rule.id,
         });
       }
       return { ...rule, lastPostedDate: dates[dates.length - 1] };
@@ -140,19 +151,21 @@ export const useFinance = create<FinanceState>((set, get) => ({
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     };
-    // Immediately post any occurrences from startDate up to today
+    // Create only the first due occurrence now; future ones are auto-posted on their scheduled dates.
     const today = todayISO();
     const dates = dueOccurrences(rule.startDate, rule.frequency, undefined, today);
-    const newTxs: Transaction[] = dates.map((d) => ({
+    const firstDueDate = dates[0];
+    const newTxs: Transaction[] = firstDueDate ? [{
       id: crypto.randomUUID(),
       amount: rule.amount,
       type: rule.type,
       categoryId: rule.categoryId,
-      date: d,
+      date: firstDueDate,
       description: rule.description,
       createdAt: new Date().toISOString(),
-    }));
-    if (dates.length) rule.lastPostedDate = dates[dates.length - 1];
+      recurringRuleId: rule.id,
+    }] : [];
+    if (firstDueDate) rule.lastPostedDate = firstDueDate;
     const recurring = [...get().recurring, rule];
     const transactions = newTxs.length
       ? [...newTxs, ...get().transactions].sort((a, b) => b.date.localeCompare(a.date))
