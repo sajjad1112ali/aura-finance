@@ -17,6 +17,17 @@ import { toast } from "sonner";
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 type PageSize = 10 | 20 | 50 | 100 | "all";
 
+function getCurrentMonthRange() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const first = `${y}-${pad(m + 1)}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const last = `${y}-${pad(m + 1)}-${pad(lastDay)}`;
+  return { first, last };
+}
+
 function getPageItems(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const items: (number | "ellipsis")[] = [];
@@ -41,8 +52,8 @@ export function TransactionsList() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(() => getCurrentMonthRange().first);
+  const [to, setTo] = useState(() => getCurrentMonthRange().last);
   const [sort, setSort] = useState<SortKey>("date-desc");
   const [pageSize, setPageSize] = useState<PageSize>(20);
   const [page, setPage] = useState(1);
@@ -95,7 +106,8 @@ export function TransactionsList() {
   const pageItems = getPageItems(currentPage, totalPages);
 
   const clearFilters = () => {
-    setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(""); setTo(""); setSort("date-desc");
+    const { first, last } = getCurrentMonthRange();
+    setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(first); setTo(last); setSort("date-desc");
   };
 
   const dialogOpen = open || !!editing;
