@@ -28,6 +28,43 @@ const recKey = (uid: string) => `${STORAGE_KEYS.recurring}.${uid}`;
 
 const recurringTxKey = (ruleId: string, date: string) => `${ruleId}:${date}`;
 
+const matchesRecurringRule = (tx: Transaction, rule: RecurringRule, date: string) =>
+  tx.date === date &&
+  tx.amount === rule.amount &&
+  tx.type === rule.type &&
+  tx.categoryId === rule.categoryId &&
+  tx.description === rule.description;
+
+function normalizeRecurringTransactions(transactions: Transaction[], rules: RecurringRule[], today: string) {
+  const duplicatesToRemove = new Set<string>();
+  const recurringIdsByTransaction = new Map<string, string>();
+
+  for (const rule of rules) {
+    const dates = dueOccurrences(rule.startDate, rule.frequency, undefined, today);
+    for (const date of dates) {
+      const matches = transactions.filter((tx) => matchesRecurringRule(tx, rule, date));
+      if (!matches.length) continue;
+      recurringIdsByTransaction.set(matches[0].id, rule.id);
+      for (const duplicate of matches.slice(1)) {
+        duplicatesToRemove.add(duplicate.id);
+      }
+    }
+  }
+
+  if (!duplicatesToRemove.size && !recurringIdsByTransaction.size) {
+    return { transactions, changed: false };
+  }
+
+  const normalized = transactions
+    .filter((tx) => !duplicatesToRemove.has(tx.id))
+    .map((tx) => {
+      const recurringRuleId = tx.recurringRuleId ?? recurringIdsByTransaction.get(tx.id);
+      return recurringRuleId ? { ...tx, recurringRuleId } : tx;
+    });
+
+  return { transactions: normalized, changed: true };
+}
+
 // Module-level guard to prevent concurrent loads (e.g. React StrictMode double-invoke
 // in dev) from auto-posting the same recurring occurrences twice.
 let loadingFor: string | null = null;
