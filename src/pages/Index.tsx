@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/store/auth";
 import { useFinance } from "@/store/finance";
 import { useTheme } from "@/store/theme";
+import { useNavigation } from "@/store/navigation";
 import AuthPage from "@/features/auth/AuthPage";
 import { AppShell, Tab } from "@/components/AppShell";
 import { Dashboard } from "@/features/dashboard/Dashboard";
@@ -19,6 +20,15 @@ const Index = () => {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [exportOpen, setExportOpen] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
+  const pendingTab = useNavigation((s) => s.pendingTab);
+  const consumePendingTab = useNavigation((s) => s.consumePendingTab);
+
+  useEffect(() => {
+    if (pendingTab) {
+      setTab(pendingTab);
+      consumePendingTab();
+    }
+  }, [pendingTab, consumePendingTab]);
 
   useEffect(() => {
     init();

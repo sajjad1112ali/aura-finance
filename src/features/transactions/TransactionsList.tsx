@@ -4,6 +4,7 @@ import * as Icons from "lucide-react";
 import { Plus, Search, Trash2, Filter, X, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { useFinance } from "@/store/finance";
 import { useExportScope } from "@/store/exportScope";
+import { useNavigation } from "@/store/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,6 +47,7 @@ function getPageItems(current: number, total: number): (number | "ellipsis")[] {
 export function TransactionsList() {
   const { transactions, categories, deleteTransaction } = useFinance();
   const setFilteredIds = useExportScope((s) => s.setFilteredIds);
+  const consumePrefill = useNavigation((s) => s.consumeTransactionsPrefill);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Transaction | null>(null);
@@ -57,6 +59,16 @@ export function TransactionsList() {
   const [sort, setSort] = useState<SortKey>("date-desc");
   const [pageSize, setPageSize] = useState<PageSize>(20);
   const [page, setPage] = useState(1);
+
+  // Apply prefill from dashboard drill-down (runs once on mount).
+  useEffect(() => {
+    const p = consumePrefill();
+    if (!p) return;
+    if (p.from !== undefined) setFrom(p.from);
+    if (p.to !== undefined) setTo(p.to);
+    if (p.categoryId) setCategoryFilter(p.categoryId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasFilters = !!(search || categoryFilter !== "all" || typeFilter !== "all" || from || to);
 
