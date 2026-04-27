@@ -1,17 +1,25 @@
 import { RecurringFrequency } from "@/types";
 
-const toISO = (d: Date) => d.toISOString().slice(0, 10);
+const pad = (n: number) => String(n).padStart(2, "0");
+const toISO = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 export function todayISO() {
+  // Use the user's LOCAL calendar day so scheduling is intuitive across
+  // timezones. UTC-based slicing can drift by a day for users east/west
+  // of UTC and cause occurrences to be skipped or duplicated.
   return toISO(new Date());
 }
 
 export function addOccurrence(dateISO: string, frequency: RecurringFrequency): string {
-  const d = new Date(dateISO + "T00:00:00");
-  if (frequency === "daily") d.setDate(d.getDate() + 1);
-  else if (frequency === "weekly") d.setDate(d.getDate() + 7);
-  else if (frequency === "monthly") d.setMonth(d.getMonth() + 1);
-  return toISO(d);
+  // Parse the YYYY-MM-DD string as a LOCAL date (not UTC) so subsequent
+  // toISO() — which reads local components — produces a stable result.
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  if (frequency === "daily") dt.setDate(dt.getDate() + 1);
+  else if (frequency === "weekly") dt.setDate(dt.getDate() + 7);
+  else if (frequency === "monthly") dt.setMonth(dt.getMonth() + 1);
+  return toISO(dt);
 }
 
 /**
