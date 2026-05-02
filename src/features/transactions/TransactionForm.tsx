@@ -26,6 +26,7 @@ export function TransactionForm({ onDone, transaction }: Props) {
   const [date, setDate] = useState(transaction?.date ?? today());
   const [description, setDescription] = useState(transaction?.description ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [submitMode, setSubmitMode] = useState<"close" | "new">("close");
 
   const filteredCats = categories.filter((c) => c.type === type || c.type === "both");
   const maxDate = today();
@@ -41,12 +42,18 @@ export function TransactionForm({ onDone, transaction }: Props) {
       if (isEdit && transaction) {
         await updateTransaction(transaction.id, { amount: amt, type, categoryId, date, description });
         toast.success("Transaction updated");
+        onDone?.();
       } else {
         await addTransaction({ amount: amt, type, categoryId, date, description });
         toast.success(`${type === "income" ? "Income" : "Expense"} added`);
-        setAmount(""); setDescription(""); setCategoryId("");
+        // Always clear amount + description so the next entry starts fresh,
+        // but keep type, category, and date so similar/backdated entries are quick.
+        setAmount("");
+        setDescription("");
+        if (submitMode === "close") {
+          onDone?.();
+        }
       }
-      onDone?.();
     } finally {
       setSubmitting(false);
     }
@@ -127,12 +134,36 @@ export function TransactionForm({ onDone, transaction }: Props) {
         />
       </div>
 
-      <Button
-        type="submit" disabled={submitting}
-        className="w-full h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
-      >
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : isEdit ? "Save changes" : `Add ${type}`}
-      </Button>
+      {isEdit ? (
+        <Button
+          type="submit"
+          disabled={submitting}
+          onClick={() => setSubmitMode("close")}
+          className="w-full h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
+        >
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+        </Button>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            type="submit"
+            disabled={submitting}
+            variant="outline"
+            onClick={() => setSubmitMode("new")}
+            className="h-11 font-semibold"
+          >
+            {submitting && submitMode === "new" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add & New"}
+          </Button>
+          <Button
+            type="submit"
+            disabled={submitting}
+            onClick={() => setSubmitMode("close")}
+            className="h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
+          >
+            {submitting && submitMode === "close" ? <Loader2 className="h-4 w-4 animate-spin" /> : `Add ${type}`}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
