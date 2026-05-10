@@ -208,6 +208,12 @@ export function TransactionsList() {
               <X className="h-4 w-4 mr-1" /> Clear
             </Button>
           )}
+          <div className="ml-auto flex items-center gap-2 text-sm font-medium">
+            <span className="text-muted-foreground hidden sm:inline">Total</span>
+            <span className={`font-display text-base ${filteredTotal >= 0 ? "text-success" : "text-destructive"}`}>
+              {filteredTotal >= 0 ? "+" : "−"}{formatCurrency(Math.abs(filteredTotal))}
+            </span>
+          </div>
         </div>
       </div>
 
