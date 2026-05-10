@@ -101,6 +101,12 @@ export function TransactionsList() {
     return list;
   }, [transactions, categories, search, categoryFilter, typeFilter, from, to, sort]);
 
+  const filteredTotal = useMemo(() => {
+    return filtered.reduce((sum, t) => {
+      return t.type === "income" ? sum + t.amount : sum - t.amount;
+    }, 0);
+  }, [filtered]);
+
   // Publish current filter scope so global Export uses it
   useEffect(() => {
     setFilteredIds(hasFilters ? filtered.map((t) => t.id) : null);
@@ -202,6 +208,12 @@ export function TransactionsList() {
               <X className="h-4 w-4 mr-1" /> Clear
             </Button>
           )}
+          <div className="ml-auto flex items-center gap-2 text-sm font-medium">
+            <span className="text-muted-foreground hidden sm:inline">Total</span>
+            <span className={`font-display text-base ${filteredTotal >= 0 ? "text-success" : "text-destructive"}`}>
+              {filteredTotal >= 0 ? "+" : "−"}{formatCurrency(Math.abs(filteredTotal))}
+            </span>
+          </div>
         </div>
       </div>
 
