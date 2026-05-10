@@ -72,6 +72,12 @@ export function TransactionsList() {
 
   const hasFilters = !!(search || categoryFilter !== "all" || typeFilter !== "all" || from || to);
 
+  const filteredTotal = useMemo(() => {
+    return filtered.reduce((sum, t) => {
+      return t.type === "income" ? sum + t.amount : sum - t.amount;
+    }, 0);
+  }, [filtered]);
+
   const filtered = useMemo(() => {
     let list = [...transactions];
     if (search) {
