@@ -50,15 +50,16 @@ function buildRows(txs: Transaction[], cats: Category[]): Row[] {
     grandIncome += income;
     grandExpense += expense;
     const label = MONTH_LABEL(ym);
-    out.push({ Date: "", Type: "", Category: label, Description: "Total Income", Amount: income.toFixed(2), _isSummary: true });
-    out.push({ Date: "", Type: "", Category: label, Description: "Total Expenses", Amount: expense.toFixed(2), _isSummary: true });
-    out.push({ Date: "", Type: "", Category: label, Description: "Net Amount", Amount: (income - expense).toFixed(2), _isSummary: true });
+    out.push({ Date: `--- ${label} Summary ---`, Type: "", Category: "", Description: "Total Income", Amount: income.toFixed(2), _isSummary: true });
+    out.push({ Date: `--- ${label} Summary ---`, Type: "", Category: "", Description: "Total Expenses", Amount: expense.toFixed(2), _isSummary: true });
+    out.push({ Date: `--- ${label} Summary ---`, Type: "", Category: "", Description: "Net Amount", Amount: (income - expense).toFixed(2), _isSummary: true });
+    out.push({ Date: "", Type: "", Category: "", Description: "", Amount: "", _isSummary: true });
   }
 
   if (groups.size > 1) {
-    out.push({ Date: "", Type: "", Category: "GRAND TOTAL", Description: "Total Income", Amount: grandIncome.toFixed(2), _isSummary: true });
-    out.push({ Date: "", Type: "", Category: "GRAND TOTAL", Description: "Total Expenses", Amount: grandExpense.toFixed(2), _isSummary: true });
-    out.push({ Date: "", Type: "", Category: "GRAND TOTAL", Description: "Net Amount", Amount: (grandIncome - grandExpense).toFixed(2), _isSummary: true });
+    out.push({ Date: "=== GRAND TOTAL ===", Type: "", Category: "", Description: "Total Income", Amount: grandIncome.toFixed(2), _isSummary: true });
+    out.push({ Date: "=== GRAND TOTAL ===", Type: "", Category: "", Description: "Total Expenses", Amount: grandExpense.toFixed(2), _isSummary: true });
+    out.push({ Date: "=== GRAND TOTAL ===", Type: "", Category: "", Description: "Net Amount", Amount: (grandIncome - grandExpense).toFixed(2), _isSummary: true });
   }
 
   return out;
