@@ -230,4 +230,13 @@ export const useFinance = create<FinanceState>((set, get) => ({
     await storage.set(recKey(uid), recurring);
     set({ recurring });
   },
+  updateRecurring: async (id, patch) => {
+    const uid = get().userId;
+    if (!uid) return;
+    // Note: lastPostedDate is preserved so previously generated transactions
+    // are not re-created and only future occurrences use the new values.
+    const recurring = get().recurring.map((r) => (r.id === id ? { ...r, ...patch } : r));
+    await storage.set(recKey(uid), recurring);
+    set({ recurring });
+  },
 }));
