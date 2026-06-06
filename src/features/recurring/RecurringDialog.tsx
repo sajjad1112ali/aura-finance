@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Repeat, Plus, Trash2, Loader2, CalendarClock } from "lucide-react";
+import { Pencil, Save, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ const FREQ_LABEL: Record<RecurringFrequency, string> = {
 };
 
 export function RecurringDialog({ open, onOpenChange }: Props) {
-  const { categories, recurring, addRecurring, deleteRecurring } = useFinance();
+  const { categories, recurring, addRecurring, updateRecurring, deleteRecurring } = useFinance();
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -36,6 +37,7 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
   const [startDate, setStartDate] = useState(todayISO());
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<RecurringRule | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const filteredCats = categories.filter((c) => c.type === type || c.type === "both");
   const maxDate = todayISO();
@@ -43,6 +45,17 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
   const reset = () => {
     setAmount(""); setDescription(""); setCategoryId("");
     setFrequency("monthly"); setStartDate(todayISO()); setType("expense");
+    setEditingId(null);
+  };
+
+  const startEdit = (r: RecurringRule) => {
+    setEditingId(r.id);
+    setType(r.type);
+    setAmount(String(r.amount));
+    setCategoryId(r.categoryId);
+    setDescription(r.description);
+    setFrequency(r.frequency);
+    setStartDate(r.startDate);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -53,8 +66,13 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
     if (startDate > maxDate) return toast.error("Start date cannot be in the future");
     setSubmitting(true);
     try {
-      await addRecurring({ amount: amt, type, categoryId, description, frequency, startDate });
-      toast.success("Recurring transaction scheduled");
+      if (editingId) {
+        await updateRecurring(editingId, { amount: amt, type, categoryId, description, frequency, startDate });
+        toast.success("Recurring rule updated. Future transactions will use the new values.");
+      } else {
+        await addRecurring({ amount: amt, type, categoryId, description, frequency, startDate });
+        toast.success("Recurring transaction scheduled");
+      }
       reset();
     } finally {
       setSubmitting(false);
