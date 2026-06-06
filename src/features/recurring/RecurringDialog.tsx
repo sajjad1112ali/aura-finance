@@ -188,8 +188,24 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
               type="submit" disabled={submitting}
               className="w-full h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Schedule recurring</>}
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editingId ? (
+                <><Save className="h-4 w-4 mr-1" /> Save changes</>
+              ) : (
+                <><Plus className="h-4 w-4 mr-1" /> Schedule recurring</>
+              )}
             </Button>
+            {editingId && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={reset}
+                className="w-full h-10"
+              >
+                <X className="h-4 w-4 mr-1" /> Cancel edit
+              </Button>
+            )}
           </form>
 
           <div className="space-y-2">
@@ -236,6 +252,13 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
                         <div className={`font-display font-bold ${isIncome ? "text-success" : "text-destructive"}`}>
                           {isIncome ? "+" : "−"}{formatCurrency(r.amount)}
                         </div>
+                        <button
+                          onClick={() => startEdit(r)}
+                          className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => setConfirmDelete(r)}
                           className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-colors"
