@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Repeat, Plus, Trash2, Loader2, CalendarClock } from "lucide-react";
+import { Pencil, Save, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ const FREQ_LABEL: Record<RecurringFrequency, string> = {
 };
 
 export function RecurringDialog({ open, onOpenChange }: Props) {
-  const { categories, recurring, addRecurring, deleteRecurring } = useFinance();
+  const { categories, recurring, addRecurring, updateRecurring, deleteRecurring } = useFinance();
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -36,6 +37,7 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
   const [startDate, setStartDate] = useState(todayISO());
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<RecurringRule | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const filteredCats = categories.filter((c) => c.type === type || c.type === "both");
   const maxDate = todayISO();
@@ -43,6 +45,17 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
   const reset = () => {
     setAmount(""); setDescription(""); setCategoryId("");
     setFrequency("monthly"); setStartDate(todayISO()); setType("expense");
+    setEditingId(null);
+  };
+
+  const startEdit = (r: RecurringRule) => {
+    setEditingId(r.id);
+    setType(r.type);
+    setAmount(String(r.amount));
+    setCategoryId(r.categoryId);
+    setDescription(r.description);
+    setFrequency(r.frequency);
+    setStartDate(r.startDate);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -53,8 +66,13 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
     if (startDate > maxDate) return toast.error("Start date cannot be in the future");
     setSubmitting(true);
     try {
-      await addRecurring({ amount: amt, type, categoryId, description, frequency, startDate });
-      toast.success("Recurring transaction scheduled");
+      if (editingId) {
+        await updateRecurring(editingId, { amount: amt, type, categoryId, description, frequency, startDate });
+        toast.success("Recurring rule updated. Future transactions will use the new values.");
+      } else {
+        await addRecurring({ amount: amt, type, categoryId, description, frequency, startDate });
+        toast.success("Recurring transaction scheduled");
+      }
       reset();
     } finally {
       setSubmitting(false);
@@ -170,8 +188,24 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
               type="submit" disabled={submitting}
               className="w-full h-11 bg-gradient-brand text-primary-foreground font-semibold shadow-glow hover:opacity-95"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Schedule recurring</>}
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editingId ? (
+                <><Save className="h-4 w-4 mr-1" /> Save changes</>
+              ) : (
+                <><Plus className="h-4 w-4 mr-1" /> Schedule recurring</>
+              )}
             </Button>
+            {editingId && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={reset}
+                className="w-full h-10"
+              >
+                <X className="h-4 w-4 mr-1" /> Cancel edit
+              </Button>
+            )}
           </form>
 
           <div className="space-y-2">
@@ -218,6 +252,13 @@ export function RecurringDialog({ open, onOpenChange }: Props) {
                         <div className={`font-display font-bold ${isIncome ? "text-success" : "text-destructive"}`}>
                           {isIncome ? "+" : "−"}{formatCurrency(r.amount)}
                         </div>
+                        <button
+                          onClick={() => startEdit(r)}
+                          className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary flex items-center justify-center text-muted-foreground transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => setConfirmDelete(r)}
                           className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-colors"

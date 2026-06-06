@@ -19,6 +19,7 @@ interface FinanceState {
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   addRecurring: (r: Omit<RecurringRule, "id" | "createdAt" | "lastPostedDate">) => Promise<void>;
+  updateRecurring: (id: string, patch: Partial<Omit<RecurringRule, "id" | "createdAt" | "lastPostedDate">>) => Promise<void>;
   deleteRecurring: (id: string) => Promise<void>;
 }
 
@@ -226,6 +227,15 @@ export const useFinance = create<FinanceState>((set, get) => ({
     const uid = get().userId;
     if (!uid) return;
     const recurring = get().recurring.filter((r) => r.id !== id);
+    await storage.set(recKey(uid), recurring);
+    set({ recurring });
+  },
+  updateRecurring: async (id, patch) => {
+    const uid = get().userId;
+    if (!uid) return;
+    // Note: lastPostedDate is preserved so previously generated transactions
+    // are not re-created and only future occurrences use the new values.
+    const recurring = get().recurring.map((r) => (r.id === id ? { ...r, ...patch } : r));
     await storage.set(recKey(uid), recurring);
     set({ recurring });
   },
