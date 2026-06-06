@@ -19,6 +19,7 @@ interface FinanceState {
   updateCategory: (id: string, patch: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   addRecurring: (r: Omit<RecurringRule, "id" | "createdAt" | "lastPostedDate">) => Promise<void>;
+  updateRecurring: (id: string, patch: Partial<Omit<RecurringRule, "id" | "createdAt" | "lastPostedDate">>) => Promise<void>;
   deleteRecurring: (id: string) => Promise<void>;
 }
 
