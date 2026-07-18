@@ -9,6 +9,7 @@ export interface ExtraTransaction {
   id: string;
   amount: number;
   date: string; // ISO yyyy-mm-dd
+  notes: string;
   createdAt: string;
 }
 
