@@ -19,6 +19,7 @@ export function ExtraTransactionForm({ onDone, transaction }: Props) {
   const isEdit = !!transaction;
   const [amount, setAmount] = useState(transaction ? String(transaction.amount) : "");
   const [date, setDate] = useState(transaction?.date ?? today());
+  const [notes, setNotes] = useState(transaction?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [submitMode, setSubmitMode] = useState<"close" | "new">("close");
 
@@ -30,11 +31,11 @@ export function ExtraTransactionForm({ onDone, transaction }: Props) {
     setSubmitting(true);
     try {
       if (isEdit && transaction) {
-        update(transaction.id, { amount: amt, date });
+        update(transaction.id, { amount: amt, date, notes });
         toast.success("Extra transaction updated");
         onDone?.();
       } else {
-        add({ amount: amt, date });
+        add({ amount: amt, date, notes });
         toast.success("Extra transaction added");
         setAmount("");
         if (submitMode === "close") onDone?.();
