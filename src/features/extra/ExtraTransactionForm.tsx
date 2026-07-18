@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ExtraTransaction, useExtra } from "./extraStore";
 
@@ -18,6 +19,7 @@ export function ExtraTransactionForm({ onDone, transaction }: Props) {
   const isEdit = !!transaction;
   const [amount, setAmount] = useState(transaction ? String(transaction.amount) : "");
   const [date, setDate] = useState(transaction?.date ?? today());
+  const [notes, setNotes] = useState(transaction?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [submitMode, setSubmitMode] = useState<"close" | "new">("close");
 
@@ -29,11 +31,11 @@ export function ExtraTransactionForm({ onDone, transaction }: Props) {
     setSubmitting(true);
     try {
       if (isEdit && transaction) {
-        update(transaction.id, { amount: amt, date });
+        update(transaction.id, { amount: amt, date, notes });
         toast.success("Extra transaction updated");
         onDone?.();
       } else {
-        add({ amount: amt, date });
+        add({ amount: amt, date, notes });
         toast.success("Extra transaction added");
         setAmount("");
         if (submitMode === "close") onDone?.();
@@ -67,6 +69,16 @@ export function ExtraTransactionForm({ onDone, transaction }: Props) {
           onChange={(e) => setDate(e.target.value)}
           className="h-11"
           required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Notes</Label>
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Purpose or reason for this extra amount"
+          className="min-h-[80px]"
         />
       </div>
 

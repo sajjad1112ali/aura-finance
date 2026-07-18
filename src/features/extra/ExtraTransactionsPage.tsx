@@ -102,6 +102,9 @@ export function ExtraTransactionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">Extra entry</div>
                     <div className="text-xs text-muted-foreground">{formatDate(t.date)}</div>
+                    {t.notes ? (
+                      <div className="text-xs text-foreground/80 mt-0.5 truncate">{t.notes}</div>
+                    ) : null}
                   </div>
                   <div className="font-display font-bold text-lg">{formatCurrency(t.amount)}</div>
                   <button

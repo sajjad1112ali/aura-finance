@@ -9,6 +9,7 @@ export interface ExtraTransaction {
   id: string;
   amount: number;
   date: string; // ISO yyyy-mm-dd
+  notes: string;
   createdAt: string;
 }
 
@@ -34,8 +35,8 @@ interface ExtraState {
   loaded: boolean;
   load: (userId: string) => void;
   reset: () => void;
-  add: (input: { amount: number; date: string }) => void;
-  update: (id: string, patch: { amount: number; date: string }) => void;
+  add: (input: { amount: number; date: string; notes?: string }) => void;
+  update: (id: string, patch: { amount: number; date: string; notes?: string }) => void;
   remove: (id: string) => void;
 }
 
@@ -49,13 +50,14 @@ export const useExtra = create<ExtraState>((set, get) => ({
     set({ userId, items, loaded: true });
   },
   reset: () => set({ userId: null, items: [], loaded: false }),
-  add: ({ amount, date }) => {
+  add: ({ amount, date, notes }) => {
     const uid = get().userId;
     if (!uid) return;
     const tx: ExtraTransaction = {
       id: crypto.randomUUID(),
       amount,
       date,
+      notes: notes ?? "",
       createdAt: new Date().toISOString(),
     };
     const items = [tx, ...get().items].sort((a, b) => b.date.localeCompare(a.date));
