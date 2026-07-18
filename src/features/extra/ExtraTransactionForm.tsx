@@ -72,6 +72,16 @@ export function ExtraTransactionForm({ onDone, transaction }: Props) {
         />
       </div>
 
+      <div className="space-y-2">
+        <Label>Notes</Label>
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Purpose or reason for this extra amount"
+          className="min-h-[80px]"
+        />
+      </div>
+
       {isEdit ? (
         <Button
           type="submit"
