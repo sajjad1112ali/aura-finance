@@ -8,7 +8,7 @@ export interface TransactionPrefill {
 
 interface NavigationState {
   /** Pending tab to switch to (consumed by Index). */
-  pendingTab: "dashboard" | "transactions" | "categories" | null;
+  pendingTab: "dashboard" | "transactions" | "categories" | "monthly" | null;
   /** Pending filter prefill for the Transactions page. */
   transactionsPrefill: TransactionPrefill | null;
   goToTransactions: (prefill?: TransactionPrefill) => void;

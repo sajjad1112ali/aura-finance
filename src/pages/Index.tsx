@@ -10,6 +10,7 @@ import { Dashboard } from "@/features/dashboard/Dashboard";
 import { TransactionsList } from "@/features/transactions/TransactionsList";
 import { CategoriesPage } from "@/features/categories/CategoriesPage";
 import { ExtraTransactionsPage } from "@/features/extra/ExtraTransactionsPage";
+import { MonthlySummaryPage } from "@/features/monthly-summary/MonthlySummaryPage";
 import { ExportDialog } from "@/features/export/ExportDialog";
 import { RecurringDialog } from "@/features/recurring/RecurringDialog";
 
@@ -73,6 +74,7 @@ const Index = () => {
           >
             {tab === "dashboard" && <Dashboard />}
             {tab === "transactions" && <TransactionsList />}
+            {tab === "monthly" && <MonthlySummaryPage />}
             {tab === "extra" && <ExtraTransactionsPage />}
             {tab === "categories" && <CategoriesPage />}
           </motion.div>

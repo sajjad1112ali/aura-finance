@@ -1,14 +1,15 @@
 import { motion } from "framer-motion";
-import { Wallet, LayoutDashboard, Receipt, Tags, LogOut, Moon, Sun, Download, Repeat, Sparkles } from "lucide-react";
+import { Wallet, LayoutDashboard, Receipt, Tags, LogOut, Moon, Sun, Download, Repeat, Sparkles, Calendar } from "lucide-react";
 import { useAuth } from "@/store/auth";
 import { useTheme } from "@/store/theme";
 import { Button } from "@/components/ui/button";
 
-export type Tab = "dashboard" | "transactions" | "extra" | "categories";
+export type Tab = "dashboard" | "transactions" | "extra" | "categories" | "monthly";
 
 const tabs: { id: Tab; label: string; icon: typeof Wallet }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "transactions", label: "Transactions", icon: Receipt },
+  { id: "monthly", label: "Monthly", icon: Calendar },
   { id: "extra", label: "Extra", icon: Sparkles },
   { id: "categories", label: "Categories", icon: Tags },
 ];

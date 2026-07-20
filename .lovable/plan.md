@@ -1,34 +1,27 @@
-## Goal
-Add per-month summaries (Total Income, Total Expenses, Net Total) to both the PDF and CSV ("Excel") exports.
+# Monthly Expenses Summary Page
 
-## Changes
-Single file: `src/services/exporter.ts`
+## Summary
+Create a dedicated "Monthly Expenses Summary" page that lists total expenses per month for a selected year, with a year filter.
 
-### Shared helper
-- Sort transactions ascending by date.
-- Group them by month key `YYYY-MM`.
-- For each group compute: `income`, `expense`, `net = income - expense`, and a display label like `"March 2025"`.
+## Details
+- Add a new route/component for the monthly expenses summary.
+- Add a year filter dropdown populated from available transaction years.
+- Show one entry per month (Jan–Dec) with the month name and total expense amount for that month.
+- For the current year, only show months up to the current month.
+- For past years, show all 12 months.
+- Use the existing expense transaction data from the finance store.
+- Add navigation to the new page (e.g., a tab or menu item in the app shell).
+- Keep styling consistent with the existing app (Tailwind + shadcn components).
 
-### CSV export (`exportCSV`)
-- Iterate months in chronological order.
-- For each month:
-  - Write a month header row: `"<Month YYYY>"` in the Date column (other cells blank) for readability.
-  - Write all transaction rows for that month.
-  - Append three summary rows:
-    - `,,,Total Income,<sum>`
-    - `,,,Total Expenses,<sum>`
-    - `,,,Net Total,<net>`
-  - Blank separator row between months.
-- Keep current header row at the top.
+## Files to change
+- `src/pages/Index.tsx` — wire the new tab/page into the main routing/tab switcher.
+- `src/components/AppShell.tsx` — add a new tab entry for the monthly summary.
+- `src/features/monthly-summary/MonthlySummaryPage.tsx` — new page component with year filter and monthly totals.
+- `src/types/index.ts` (if needed) — no new types expected.
 
-### PDF export (`exportPDF`)
-- Keep the top header (title, generated date, overall totals).
-- Replace the single `autoTable` with one `autoTable` per month, using `startY` from `doc.lastAutoTable.finalY`.
-  - Add a small section heading `"<Month YYYY>"` above each table (`doc.text`).
-  - Body = transactions for that month.
-  - Append three foot rows (or extra body rows styled bold) for Total Income, Total Expenses, Net Total in the Amount column.
-  - Use `didDrawPage` / page-break safety provided by autoTable defaults.
-
-## Out of scope
-- No changes to the in-app UI, totals shown on screen, or the underlying store.
-- Overall totals at the top of the PDF stay as-is.
+## Technical approach
+- Derive available years from the user's transactions (expense types only).
+- Compute monthly totals by grouping transactions by year-month and summing `amount` for `type === "expense"`.
+- Default selected year to the current year.
+- Use existing `formatCurrency` helper for amounts.
+- Use existing shadcn components (Select, Card, etc.) for UI.
