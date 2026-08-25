@@ -1,83 +1,44 @@
 import { create } from "zustand";
+import { api, ExtraTransaction } from "@/services/api";
 
-/**
- * Isolated store for "Extra Transactions".
- * Intentionally independent from the main finance store — these entries
- * never affect dashboard analytics, balances, or summaries.
- */
-export interface ExtraTransaction {
-  id: string;
-  amount: number;
-  date: string; // ISO yyyy-mm-dd
-  notes: string;
-  createdAt: string;
-}
-
-const STORAGE_KEY = "et.extraTransactions";
-const keyFor = (uid: string) => `${STORAGE_KEY}.${uid}`;
-
-const read = (uid: string): ExtraTransaction[] => {
-  try {
-    const raw = localStorage.getItem(keyFor(uid));
-    return raw ? (JSON.parse(raw) as ExtraTransaction[]) : [];
-  } catch {
-    return [];
-  }
-};
-
-const write = (uid: string, items: ExtraTransaction[]) => {
-  localStorage.setItem(keyFor(uid), JSON.stringify(items));
-};
+export type { ExtraTransaction };
 
 interface ExtraState {
   userId: string | null;
   items: ExtraTransaction[];
   loaded: boolean;
-  load: (userId: string) => void;
+  load: (userId: string) => Promise<void>;
   reset: () => void;
-  add: (input: { amount: number; date: string; notes?: string }) => void;
-  update: (id: string, patch: { amount: number; date: string; notes?: string }) => void;
-  remove: (id: string) => void;
+  add: (input: { amount: number; date: string; notes?: string }) => Promise<void>;
+  update: (id: string, patch: { amount: number; date: string; notes?: string }) => Promise<void>;
+  remove: (id: string) => Promise<void>;
 }
 
 export const useExtra = create<ExtraState>((set, get) => ({
   userId: null,
   items: [],
   loaded: false,
-  load: (userId) => {
+  load: async (userId) => {
     if (get().userId === userId && get().loaded) return;
-    const items = read(userId).sort((a, b) => b.date.localeCompare(a.date));
+    const items = (await api.extra.list()).sort((a, b) => b.date.localeCompare(a.date));
     set({ userId, items, loaded: true });
   },
   reset: () => set({ userId: null, items: [], loaded: false }),
-  add: ({ amount, date, notes }) => {
-    const uid = get().userId;
-    if (!uid) return;
-    const tx: ExtraTransaction = {
-      id: crypto.randomUUID(),
-      amount,
-      date,
-      notes: notes ?? "",
-      createdAt: new Date().toISOString(),
-    };
+  add: async ({ amount, date, notes }) => {
+    const tx = await api.extra.create({ amount, date, notes });
     const items = [tx, ...get().items].sort((a, b) => b.date.localeCompare(a.date));
-    write(uid, items);
     set({ items });
   },
-  update: (id, patch) => {
-    const uid = get().userId;
-    if (!uid) return;
+  update: async (id, patch) => {
+    const tx = await api.extra.update(id, patch);
     const items = get()
-      .items.map((t) => (t.id === id ? { ...t, ...patch } : t))
+      .items.map((t) => (t.id === id ? tx : t))
       .sort((a, b) => b.date.localeCompare(a.date));
-    write(uid, items);
     set({ items });
   },
-  remove: (id) => {
-    const uid = get().userId;
-    if (!uid) return;
+  remove: async (id) => {
+    await api.extra.delete(id);
     const items = get().items.filter((t) => t.id !== id);
-    write(uid, items);
     set({ items });
   },
 }));
