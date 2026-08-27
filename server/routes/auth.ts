@@ -38,7 +38,7 @@ authRoutes.post('/sign-up', async (c) => {
 
     await db.insert(categories).values(
       DEFAULT_CATEGORIES.map((cat) => ({
-        id: cat.id,
+        id: crypto.randomUUID(),
         name: cat.name,
         icon: cat.icon,
         color: cat.color,
