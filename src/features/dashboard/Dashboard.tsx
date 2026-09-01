@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Wallet, TrendingUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
@@ -8,24 +8,25 @@ import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { formatCurrency } from "@/lib/format";
 import { WeeklyInsights } from "./WeeklyInsights";
 import { MonthSwitcher } from "./MonthSwitcher";
+import { monthRange, shiftMonth } from "@/lib/range";
 
-function monthRange(d: Date) {
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const first = `${y}-${pad(m + 1)}-01`;
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  const last = `${y}-${pad(m + 1)}-${pad(lastDay)}`;
-  return { first, last };
-}
+const WINDOW_MONTHS = 6;
 
 export function Dashboard() {
-  const { transactions, categories } = useFinance();
+  const { transactions, categories, loaded, setRange } = useFinance();
   const goToTransactions = useNavigation((s) => s.goToTransactions);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
+
+  // Ensure the store window covers the 6 months ending at the selected month.
+  useEffect(() => {
+    if (!loaded) return;
+    const from = monthRange(shiftMonth(selectedMonth, -(WINDOW_MONTHS - 1))).from;
+    const to = monthRange(selectedMonth).to;
+    setRange(from, to);
+  }, [selectedMonth, loaded, setRange]);
 
   const isCurrentMonth = useMemo(() => {
     const n = new Date();
@@ -75,7 +76,7 @@ export function Dashboard() {
   const range = useMemo(() => monthRange(selectedMonth), [selectedMonth]);
 
   const drillDown = (categoryId?: string) => {
-    goToTransactions({ from: range.first, to: range.last, categoryId });
+    goToTransactions({ from: range.from, to: range.to, categoryId });
   };
 
   const cards = [

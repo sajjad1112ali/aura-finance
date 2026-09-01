@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFinance } from "@/store/finance";
+import { api } from "@/services/api";
 import { formatCurrency } from "@/lib/format";
 import {
   Select,
@@ -27,23 +28,36 @@ const MONTH_NAMES = [
 ];
 
 export function MonthlySummaryPage() {
-  const transactions = useFinance((s) => s.transactions);
+  const { transactions, setRange } = useFinance();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth(); // 0-based
 
-  const years = useMemo(() => {
-    const set = new Set<number>();
-    transactions.forEach((tx) => {
-      const year = Number(tx.date.slice(0, 4));
-      if (!Number.isNaN(year)) set.add(year);
-    });
-    const list = Array.from(set).sort((a, b) => b - a);
-    return list.length ? list : [currentYear];
-  }, [transactions, currentYear]);
+  const [years, setYears] = useState<number[]>([currentYear]);
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
-  const [selectedYear, setSelectedYear] = useState<number>(
-    years.includes(currentYear) ? currentYear : years[0]
-  );
+  // Load the list of years that have data, then fetch that year's window.
+  useEffect(() => {
+    let live = true;
+    api.transactions
+      .years()
+      .then((ys) => {
+        if (!live) return;
+        const list = ys.map(Number).filter((n) => !Number.isNaN(n));
+        const available = [...new Set(list)].sort((a, b) => b - a);
+        setYears(available.length ? available : [currentYear]);
+        setSelectedYear((prev) =>
+          available.includes(prev) ? prev : available[0] ?? currentYear
+        );
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [currentYear]);
+
+  useEffect(() => {
+    setRange(`${selectedYear}-01-01`, `${selectedYear}-12-31`);
+  }, [selectedYear, setRange]);
 
   const monthlyTotals = useMemo(() => {
     const totals = new Array(12).fill(0);

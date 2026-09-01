@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Plus, Search, Trash2, Filter, X, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
@@ -13,21 +13,11 @@ import { TransactionForm } from "./TransactionForm";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Transaction } from "@/types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { currentMonthRange } from "@/lib/range";
 import { toast } from "sonner";
 
 type SortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
 type PageSize = 10 | 20 | 50 | 100 | "all";
-
-function getCurrentMonthRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const first = `${y}-${pad(m + 1)}-01`;
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  const last = `${y}-${pad(m + 1)}-${pad(lastDay)}`;
-  return { first, last };
-}
 
 function getPageItems(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -45,7 +35,7 @@ function getPageItems(current: number, total: number): (number | "ellipsis")[] {
 }
 
 export function TransactionsList() {
-  const { transactions, categories, deleteTransaction } = useFinance();
+  const { transactions, categories, deleteTransaction, setRange } = useFinance();
   const setFilteredIds = useExportScope((s) => s.setFilteredIds);
   const consumePrefill = useNavigation((s) => s.consumeTransactionsPrefill);
   const [open, setOpen] = useState(false);
@@ -54,11 +44,12 @@ export function TransactionsList() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
-  const [from, setFrom] = useState(() => getCurrentMonthRange().first);
-  const [to, setTo] = useState(() => getCurrentMonthRange().last);
+  const [from, setFrom] = useState(() => currentMonthRange().from);
+  const [to, setTo] = useState(() => currentMonthRange().to);
   const [sort, setSort] = useState<SortKey>("date-desc");
   const [pageSize, setPageSize] = useState<PageSize>(20);
   const [page, setPage] = useState(1);
+  const appliedRange = useRef(false);
 
   // Apply prefill from dashboard drill-down (runs once on mount).
   useEffect(() => {
@@ -69,6 +60,18 @@ export function TransactionsList() {
     if (p.categoryId) setCategoryFilter(p.categoryId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch the transaction window from the server whenever the date range changes.
+  useEffect(() => {
+    if (!appliedRange.current) {
+      appliedRange.current = true;
+      return; // skip the initial mount fetch; the store already loaded its window
+    }
+    const timer = setTimeout(() => {
+      setRange(from || undefined, to || undefined);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [from, to, setRange]);
 
   const hasFilters = !!(search || categoryFilter !== "all" || typeFilter !== "all" || from || to);
 
@@ -124,8 +127,8 @@ export function TransactionsList() {
   const pageItems = getPageItems(currentPage, totalPages);
 
   const clearFilters = () => {
-    const { first, last } = getCurrentMonthRange();
-    setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(first); setTo(last); setSort("date-desc");
+    const current = currentMonthRange();
+    setSearch(""); setCategoryFilter("all"); setTypeFilter("all"); setFrom(current.from); setTo(current.to); setSort("date-desc");
   };
 
   const dialogOpen = open || !!editing;

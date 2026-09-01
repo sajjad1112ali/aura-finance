@@ -15,7 +15,7 @@ export const categories = sqliteTable('categories', {
   color: text('color').notNull(),
   type: text('type').notNull(),
   isCustom: integer('is_custom', { mode: 'boolean' }).default(false).notNull(),
-  userId: text('user_id').references(() => users.id).notNull(),
+  userId: text('user_id').references(() => users.id),
 }, (table) => [
   index('categories_user_id_idx').on(table.userId),
 ]);

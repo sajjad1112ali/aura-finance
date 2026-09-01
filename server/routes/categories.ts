@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from '../db';
-import { categories } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { categories, transactions } from '../db/schema';
+import { eq, and, isNull, or } from 'drizzle-orm';
 
 export const categoryRoutes = new Hono();
 
@@ -11,7 +11,7 @@ categoryRoutes.get('/', async (c) => {
     const rows = await db
       .select()
       .from(categories)
-      .where(eq(categories.userId, userId))
+      .where(or(isNull(categories.userId), eq(categories.userId, userId)))
       .all();
     return c.json(rows);
   } catch (err) {
@@ -90,15 +90,26 @@ categoryRoutes.delete('/:id', async (c) => {
     const existing = await db
       .select()
       .from(categories)
-      .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+      .where(eq(categories.id, id))
       .get();
 
     if (!existing) {
       return c.json({ error: 'Category not found' }, 404);
     }
 
-    if (!existing.isCustom) {
+    if (existing.userId !== userId || !existing.isCustom) {
       return c.json({ error: 'Cannot delete default category' }, 403);
+    }
+
+    const inUse = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(eq(transactions.categoryId, id))
+      .limit(1)
+      .get();
+
+    if (inUse) {
+      return c.json({ error: 'Category is in use by transactions' }, 409);
     }
 
     await db.delete(categories).where(eq(categories.id, id));

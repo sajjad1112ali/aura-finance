@@ -1,21 +1,43 @@
 import { Hono } from 'hono';
 import { db } from '../db';
 import { transactions } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 
 export const transactionRoutes = new Hono();
 
 transactionRoutes.get('/', async (c) => {
   try {
     const userId = c.get('userId');
+    const from = c.req.query('from');
+    const to = c.req.query('to');
+    const conditions = [eq(transactions.userId, userId)];
+    if (from) conditions.push(gte(transactions.date, from));
+    if (to) conditions.push(lte(transactions.date, to));
     const rows = await db
       .select()
       .from(transactions)
-      .where(eq(transactions.userId, userId))
+      .where(and(...conditions))
       .all();
     return c.json(rows);
   } catch (err) {
     console.error('List transactions error:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+transactionRoutes.get('/years', async (c) => {
+  try {
+    const userId = c.get('userId');
+    const rows = await db
+      .select({ year: sql<string>`substr(${transactions.date}, 1, 4)` })
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .groupBy(sql`substr(${transactions.date}, 1, 4)`)
+      .all();
+    const years = rows.map((r) => r.year).filter(Boolean).sort((a, b) => b.localeCompare(a));
+    return c.json(years);
+  } catch (err) {
+    console.error('List transaction years error:', err);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });

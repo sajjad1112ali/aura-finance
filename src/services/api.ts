@@ -40,7 +40,14 @@ export const api = {
     signOut: () => request<{ ok: true }>("/auth/sign-out", { method: "POST" }),
   },
   transactions: {
-    list: () => request<Transaction[]>("/transactions"),
+    list: (params?: { from?: string; to?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const q = qs.toString();
+      return request<Transaction[]>(`/transactions${q ? `?${q}` : ""}`);
+    },
+    years: () => request<string[]>("/transactions/years"),
     create: (t: Omit<Transaction, "id" | "createdAt">) =>
       request<Transaction>("/transactions", { method: "POST", body: JSON.stringify(t) }),
     update: (id: string, patch: Partial<Transaction>) =>
@@ -63,6 +70,7 @@ export const api = {
   },
   recurring: {
     list: () => request<RecurringRule[]>("/recurring"),
+    process: () => request<{ created: number; removed: number; updated: number }>("/recurring/process", { method: "POST" }),
     create: (r: Omit<RecurringRule, "id" | "createdAt" | "lastPostedDate">) =>
       request<RecurringRule>("/recurring", { method: "POST", body: JSON.stringify(r) }),
     update: (id: string, patch: Partial<RecurringRule>) =>

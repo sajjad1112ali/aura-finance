@@ -1,9 +1,22 @@
 import { Hono } from 'hono';
 import { db } from '../db';
-import { recurringRules } from '../db/schema';
+import { recurringRules, transactions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { processRecurring } from '../lib/recurring';
+import { dueOccurrences, todayISO } from '../../src/lib/recurring';
 
 export const recurringRoutes = new Hono();
+
+recurringRoutes.post('/process', async (c) => {
+  try {
+    const userId = c.get('userId');
+    const result = await processRecurring(userId);
+    return c.json(result);
+  } catch (err) {
+    console.error('Process recurring error:', err);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
 
 recurringRoutes.get('/', async (c) => {
   try {
@@ -41,6 +54,30 @@ recurringRoutes.post('/', async (c) => {
       })
       .returning()
       .get();
+
+    // Post the first due occurrence immediately (same as the old client behavior).
+    const dates = dueOccurrences(body.startDate, body.frequency, undefined, todayISO());
+    const firstDue = dates[0];
+    if (firstDue) {
+      await db.insert(transactions).values({
+        id: crypto.randomUUID(),
+        amount: row.amount,
+        type: row.type,
+        categoryId: row.categoryId,
+        date: firstDue,
+        description: row.description,
+        createdAt: new Date().toISOString(),
+        recurringRuleId: row.id,
+        userId,
+      });
+      const updated = await db
+        .update(recurringRules)
+        .set({ lastPostedDate: firstDue })
+        .where(eq(recurringRules.id, row.id))
+        .returning()
+        .get();
+      return c.json(updated);
+    }
 
     return c.json(row);
   } catch (err) {

@@ -3,7 +3,7 @@ import { setCookie, deleteCookie } from 'hono/cookie';
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
 import { users, categories } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, isNull, and, isNotNull } from 'drizzle-orm';
 import { signJwt } from '../lib/jwt';
 import { authMiddleware } from '../middleware/auth';
 import { DEFAULT_CATEGORIES } from '../../src/services/seed';
@@ -18,6 +18,32 @@ const COOKIE_OPTIONS = {
   maxAge: 30 * 24 * 60 * 60,
 };
 
+async function ensureDefaultCategories() {
+  const globalDefaults = await db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.isCustom, false), isNull(categories.userId)))
+    .limit(1)
+    .get();
+  if (globalDefaults) return;
+
+  await db
+    .delete(categories)
+    .where(and(eq(categories.isCustom, false), isNotNull(categories.userId)));
+
+  await db.insert(categories).values(
+    DEFAULT_CATEGORIES.map((cat) => ({
+      id: crypto.randomUUID(),
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      type: cat.type,
+      isCustom: false,
+      userId: null,
+    }))
+  );
+}
+
 authRoutes.post('/sign-up', async (c) => {
   try {
     const { name, email, password } = await c.req.json();
@@ -31,22 +57,12 @@ authRoutes.post('/sign-up', async (c) => {
       return c.json({ error: 'Email already in use' }, 409);
     }
 
+    await ensureDefaultCategories();
+
     const id = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, 12);
 
     await db.insert(users).values({ id, name, email, passwordHash });
-
-    await db.insert(categories).values(
-      DEFAULT_CATEGORIES.map((cat) => ({
-        id: crypto.randomUUID(),
-        name: cat.name,
-        icon: cat.icon,
-        color: cat.color,
-        type: cat.type,
-        isCustom: false,
-        userId: id,
-      }))
-    );
 
     const token = signJwt({ sub: id, email, name });
 

@@ -1,16 +1,20 @@
 import { create } from "zustand";
 import { api } from "@/services/api";
-import { DEFAULT_CATEGORIES } from "@/services/seed";
 import { Category, RecurringRule, Transaction } from "@/types";
-import { dueOccurrences, todayISO } from "@/lib/recurring";
+import { monthRange, shiftMonth } from "@/lib/range";
 
 interface FinanceState {
   userId: string | null;
   transactions: Transaction[];
+  viewRange: { from?: string; to?: string } | null;
   categories: Category[];
   recurring: RecurringRule[];
   loaded: boolean;
+  version: number;
   load: (userId: string) => Promise<void>;
+  setRange: (from?: string, to?: string) => Promise<void>;
+  refreshActiveRange: () => Promise<void>;
+  fetchRange: (from?: string, to?: string) => Promise<Transaction[]>;
   reset: () => void;
   addTransaction: (t: Omit<Transaction, "id" | "createdAt">) => Promise<void>;
   updateTransaction: (id: string, patch: Partial<Omit<Transaction, "id" | "createdAt">>) => Promise<void>;
@@ -23,58 +27,18 @@ interface FinanceState {
   deleteRecurring: (id: string) => Promise<void>;
 }
 
-const recurringTxKey = (ruleId: string, date: string) => `${ruleId}:${date}`;
-
-const matchesRecurringRule = (tx: Transaction, rule: RecurringRule, date: string) =>
-  tx.date === date &&
-  tx.amount === rule.amount &&
-  tx.type === rule.type &&
-  tx.categoryId === rule.categoryId &&
-  tx.description === rule.description;
-
-function normalizeRecurringTransactions(transactions: Transaction[], rules: RecurringRule[], today: string) {
-  const duplicatesToRemove = new Set<string>();
-  const recurringIdsByTransaction = new Map<string, string>();
-
-  for (const rule of rules) {
-    const dates = dueOccurrences(rule.startDate, rule.frequency, undefined, today);
-    for (const date of dates) {
-      const matches = transactions.filter((tx) => matchesRecurringRule(tx, rule, date));
-      if (!matches.length) continue;
-      const recurringCandidates = matches.filter(
-        (tx) => tx.recurringRuleId === rule.id || tx.createdAt >= rule.createdAt
-      );
-      if (!recurringCandidates.length) continue;
-      const primary = recurringCandidates.find((tx) => tx.recurringRuleId === rule.id) ?? recurringCandidates[0];
-      recurringIdsByTransaction.set(primary.id, rule.id);
-      for (const duplicate of recurringCandidates.filter((tx) => tx.id !== primary.id)) {
-        duplicatesToRemove.add(duplicate.id);
-      }
-    }
-  }
-
-  if (!duplicatesToRemove.size && !recurringIdsByTransaction.size) {
-    return { transactions, changed: false };
-  }
-
-  const normalized = transactions
-    .filter((tx) => !duplicatesToRemove.has(tx.id))
-    .map((tx) => {
-      const recurringRuleId = tx.recurringRuleId ?? recurringIdsByTransaction.get(tx.id);
-      return recurringRuleId ? { ...tx, recurringRuleId } : tx;
-    });
-
-  return { transactions: normalized, changed: true };
-}
+const WINDOW_MONTHS = 6;
 
 let loadingFor: string | null = null;
 
 export const useFinance = create<FinanceState>((set, get) => ({
   userId: null,
   transactions: [],
+  viewRange: null,
   categories: [],
   recurring: [],
   loaded: false,
+  version: 0,
   load: async (userId) => {
     if (loadingFor === userId) return;
     const state = get();
@@ -82,92 +46,54 @@ export const useFinance = create<FinanceState>((set, get) => ({
     loadingFor = userId;
     set({ loaded: false, userId });
     try {
-      const [transactions, categories, rules] = await Promise.all([
-        api.transactions.list(),
+      await Promise.all([
         api.categories.list(),
         api.recurring.list(),
-      ]);
-
-      if (!categories.length) {
-        for (const c of DEFAULT_CATEGORIES) {
-          await api.categories.create(c);
-        }
-        const freshCategories = await api.categories.list();
-        set({ categories: freshCategories });
-      } else {
-        set({ categories });
-      }
-
-      let txs = transactions;
-      let recRules = rules;
-
-      const today = todayISO();
-      const normalized = normalizeRecurringTransactions(txs, recRules, today);
-      if (normalized.changed) txs = normalized.transactions;
-      const existingRecurringTxs = new Set(
-        txs
-          .filter((tx) => tx.recurringRuleId)
-          .map((tx) => recurringTxKey(tx.recurringRuleId as string, tx.date))
-      );
-      const newTxs: Transaction[] = [];
-      const updatedRules: RecurringRule[] = [];
-      recRules = recRules.map((rule) => {
-        const dates = dueOccurrences(rule.startDate, rule.frequency, rule.lastPostedDate, today);
-        if (!dates.length) return rule;
-        for (const d of dates) {
-          const key = recurringTxKey(rule.id, d);
-          if (existingRecurringTxs.has(key)) continue;
-          existingRecurringTxs.add(key);
-          newTxs.push({
-            id: crypto.randomUUID(),
-            amount: rule.amount,
-            type: rule.type,
-            categoryId: rule.categoryId,
-            date: d,
-            description: rule.description,
-            createdAt: new Date().toISOString(),
-            recurringRuleId: rule.id,
-          });
-        }
-        const updatedRule = { ...rule, lastPostedDate: dates[dates.length - 1] };
-        updatedRules.push(updatedRule);
-        return updatedRule;
+        api.recurring.process(),
+      ]).then(([categories, rules]) => {
+        set({ categories, recurring: rules });
       });
-      if (newTxs.length) {
-        for (const tx of newTxs) {
-          await api.transactions.create(tx);
-        }
-        for (const rule of updatedRules) {
-          await api.recurring.update(rule.id, { lastPostedDate: rule.lastPostedDate });
-        }
-        txs = [...newTxs, ...txs].sort((a, b) => b.date.localeCompare(a.date));
-      } else if (normalized.changed) {
-        txs = txs.sort((a, b) => b.date.localeCompare(a.date));
-      }
 
-      set({ transactions: txs, recurring: recRules, loaded: true });
+      const now = new Date();
+      const from = monthRange(shiftMonth(now, -(WINDOW_MONTHS - 1))).from;
+      const to = monthRange(now).to;
+      const transactions = await api.transactions.list({ from, to });
+
+      set({ transactions, viewRange: { from, to }, loaded: true, version: get().version + 1 });
     } finally {
       if (loadingFor === userId) loadingFor = null;
     }
   },
+  setRange: async (from, to) => {
+    const cur = get().viewRange;
+    if (cur?.from === from && cur?.to === to) return;
+    const transactions = await api.transactions.list({ from, to });
+    set({ transactions, viewRange: { from, to } });
+  },
+  refreshActiveRange: async () => {
+    const { from, to } = get().viewRange ?? {};
+    const transactions = await api.transactions.list({ from, to });
+    set({ transactions });
+  },
+  fetchRange: (from, to) => api.transactions.list({ from, to }),
   reset: () => {
     loadingFor = null;
-    set({ userId: null, transactions: [], categories: [], recurring: [], loaded: false });
+    set({ userId: null, transactions: [], viewRange: null, categories: [], recurring: [], loaded: false, version: 0 });
   },
   addTransaction: async (t) => {
-    const tx = await api.transactions.create(t);
-    const transactions = [tx, ...get().transactions];
-    set({ transactions });
+    await api.transactions.create(t);
+    await get().refreshActiveRange();
+    set({ version: get().version + 1 });
   },
   updateTransaction: async (id, patch) => {
-    const tx = await api.transactions.update(id, patch);
-    const transactions = get().transactions.map((t) => (t.id === id ? tx : t));
-    set({ transactions });
+    await api.transactions.update(id, patch);
+    await get().refreshActiveRange();
+    set({ version: get().version + 1 });
   },
   deleteTransaction: async (id) => {
     await api.transactions.delete(id);
-    const transactions = get().transactions.filter((t) => t.id !== id);
-    set({ transactions });
+    await get().refreshActiveRange();
+    set({ version: get().version + 1 });
   },
   addCategory: async (c) => {
     const cat = await api.categories.create(c);
@@ -186,46 +112,19 @@ export const useFinance = create<FinanceState>((set, get) => ({
   },
   addRecurring: async (r) => {
     const rule = await api.recurring.create(r);
-    const today = todayISO();
-    const dates = dueOccurrences(rule.startDate, rule.frequency, undefined, today);
-    const firstDueDate = dates[0];
-    const newTxs: Transaction[] = firstDueDate
-      ? [
-          {
-            id: crypto.randomUUID(),
-            amount: rule.amount,
-            type: rule.type,
-            categoryId: rule.categoryId,
-            date: firstDueDate,
-            description: rule.description,
-            createdAt: new Date().toISOString(),
-            recurringRuleId: rule.id,
-          },
-        ]
-      : [];
-    if (firstDueDate) {
-      await api.recurring.update(rule.id, { lastPostedDate: firstDueDate });
-      rule.lastPostedDate = firstDueDate;
-    }
     const recurring = [...get().recurring, rule];
-    if (newTxs.length) {
-      for (const tx of newTxs) {
-        await api.transactions.create(tx);
-      }
-      const transactions = [...newTxs, ...get().transactions].sort((a, b) => b.date.localeCompare(a.date));
-      set({ recurring, transactions });
-    } else {
-      set({ recurring });
-    }
-  },
-  deleteRecurring: async (id) => {
-    await api.recurring.delete(id);
-    const recurring = get().recurring.filter((r) => r.id !== id);
     set({ recurring });
+    await get().refreshActiveRange();
+    set({ version: get().version + 1 });
   },
   updateRecurring: async (id, patch) => {
     const rule = await api.recurring.update(id, patch);
     const recurring = get().recurring.map((r) => (r.id === id ? rule : r));
+    set({ recurring });
+  },
+  deleteRecurring: async (id) => {
+    await api.recurring.delete(id);
+    const recurring = get().recurring.filter((r) => r.id !== id);
     set({ recurring });
   },
 }));

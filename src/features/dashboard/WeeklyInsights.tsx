@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, TrendingDown, TrendingUp, Trophy, Coffee, CalendarDays } from "lucide-react";
 import { useFinance } from "@/store/finance";
+import { api } from "@/services/api";
 import { formatCurrency } from "@/lib/format";
+import { startOfDay, daysAgo } from "@/lib/range";
+import { Transaction } from "@/types";
 
 type Insight = {
   id: string;
@@ -12,20 +15,21 @@ type Insight = {
   tone: "positive" | "negative" | "neutral";
 };
 
-const startOfDay = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-};
-
-const daysAgo = (n: number) => {
-  const d = startOfDay(new Date());
-  d.setDate(d.getDate() - n);
-  return d;
-};
+const toISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export function WeeklyInsights() {
-  const { transactions, categories } = useFinance();
+  const { categories, version } = useFinance();
+  const [txs, setTxs] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    const from = toISO(daysAgo(30));
+    const to = toISO(startOfDay(new Date()));
+    api.transactions
+      .list({ from, to })
+      .then((rows) => setTxs(rows))
+      .catch(() => {});
+  }, [version]);
 
   const insights = useMemo<Insight[]>(() => {
     const out: Insight[] = [];
@@ -34,7 +38,7 @@ export function WeeklyInsights() {
     const lastWeekStart = daysAgo(13);
     const lastWeekEnd = daysAgo(7);
 
-    const expenses = transactions.filter((t) => t.type === "expense");
+    const expenses = txs.filter((t) => t.type === "expense");
 
     const inRange = (iso: string, start: Date, end: Date) => {
       const d = startOfDay(new Date(iso));
@@ -157,7 +161,7 @@ export function WeeklyInsights() {
     }
 
     return out;
-  }, [transactions, categories]);
+  }, [txs, categories]);
 
   if (!insights.length) {
     return (

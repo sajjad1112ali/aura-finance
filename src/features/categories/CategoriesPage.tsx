@@ -54,8 +54,12 @@ export function CategoriesPage() {
 
   const doDelete = async () => {
     if (!confirmDelete) return;
-    await deleteCategory(confirmDelete.id);
-    toast.success("Category deleted");
+    try {
+      await deleteCategory(confirmDelete.id);
+      toast.success("Category deleted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete category");
+    }
     setConfirmDelete(null);
   };
 
