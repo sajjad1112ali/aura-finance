@@ -14,6 +14,7 @@
     "server:dev": "tsx watch server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:prod": "DB_ENV=production drizzle-kit migrate --config drizzle.config.ts",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
     "test": "vitest run",

@@ -31,4 +31,4 @@ local.db
 .env.local
 
 # Drizzle
-drizzle/meta/
+drizzle/*.db
